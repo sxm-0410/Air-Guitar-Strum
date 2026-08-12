@@ -119,6 +119,11 @@ def main():
     ap.add_argument('--ip', default=None)
     ap.add_argument('--mac', default='b0:3f:d3:5a:ae:d0')
     ap.add_argument('--outdir', default='data/pilot')
+    ap.add_argument('--interleave', dest='interleave', action='store_true', default=True,
+                    help='randomize gesture order across reps (default)')
+    ap.add_argument('--blocked', dest='interleave', action='store_false',
+                    help='collect each gesture in a block (old behavior)')
+    ap.add_argument('--seed', type=int, default=1)
     args = ap.parse_args()
 
     port = args.port or find_port()
@@ -152,20 +157,30 @@ def main():
             sys.exit("No CSI stream. Check the board is flashed with active_sta and joined the router.")
         print("Stream is live.\n")
 
+        # build the trial list: interleaved (shuffled) by default so every gesture
+        # is collected under identical conditions (removes block-order artifacts)
+        import random
+        trials = [g for g in gestures for _ in range(args.count)]
+        if args.interleave:
+            random.Random(args.seed).shuffle(trials)
+            print(f"INTERLEAVED order ({len(trials)} trials). You'll be told which gesture each time.\n")
+        else:
+            print(f"BLOCKED order ({len(trials)} trials).\n")
+
         n_rows = 0
+        rep_of = defaultdict(int)   # per-gesture sample counter
         with open(outpath, 'w') as f:
             f.write("gesture,sample_id,t_rel,rssi,amps\n")
-            for g in gestures:
-                print(f"\n===== Gesture: {g.upper()} =====")
-                input(f"Position yourself, then press ENTER to start {args.count} reps of '{g}'...")
-                for rep in range(args.count):
-                    countdown(f"[{g} {rep+1}/{args.count}]  Perform the gesture on GO:")
-                    rows = record_window(s, args.window)
-                    for (t_rel, rssi, amps) in rows:
-                        f.write(f"{g},{rep},{t_rel},{rssi},{amps}\n")
-                        n_rows += 1
-                    f.flush()
-                    print(f"    captured {len(rows)} CSI packets")
+            input("Press ENTER to begin...")
+            for k, g in enumerate(trials):
+                sid = rep_of[g]; rep_of[g] += 1
+                countdown(f"[{k+1}/{len(trials)}]  >>> {g.upper()} <<<  perform on GO:")
+                rows = record_window(s, args.window)
+                for (t_rel, rssi, amps) in rows:
+                    f.write(f"{g},{sid},{t_rel},{rssi},{amps}\n")
+                    n_rows += 1
+                f.flush()
+                print(f"    captured {len(rows)} CSI packets")
         s.close()
         print(f"\nDone. {n_rows} CSI packets saved to {outpath}")
     finally:

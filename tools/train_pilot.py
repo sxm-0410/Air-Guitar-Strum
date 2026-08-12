@@ -70,7 +70,12 @@ def features(rows):
     }
 
 def main():
-    files, groups = load_samples()
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--data', default='data/pilot/session_*.csv',
+                    help='glob for session CSVs (default: all)')
+    args = ap.parse_args()
+    files, groups = load_samples(args.data)
     X, y, names = [], [], None
     for (fi, g, sid), rows in groups.items():
         feat = features(rows)
