@@ -27,6 +27,7 @@ Data layout (one row per CSI packet):
 Group by (gesture, sample_id) to reconstruct each window.
 """
 import argparse, glob, os, re, subprocess, sys, time, signal
+from collections import defaultdict
 from datetime import datetime
 
 def find_port():
