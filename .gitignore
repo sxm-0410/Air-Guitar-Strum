@@ -1,0 +1,34 @@
+# Data & model binaries (large — use releases / Git LFS if needed)
+data/
+models/*.keras
+models/*.tflite
+models/*.h5
+*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.ipynb_checkpoints/
+
+# PlatformIO / ESP-IDF
+.pio/
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+
+# OS / editor
+.DS_Store
+.vscode/
+*.swp
+
+# Secrets
+.env
+.env.local
+
+# Claude Code local
+.claude/settings.local.json
