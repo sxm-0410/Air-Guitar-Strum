@@ -19,6 +19,33 @@
 #include "../../_components/time_component.h"
 #include "../../_components/input_component.h"
 #include "../../_components/sockets_component.h"
+#include "../../_components/oled_component.h"
+#include "driver/uart.h"
+#include "driver/uart_vfs.h"
+
+// Reads "OLED:<text>" (optional "top|bottom") lines from the laptop over serial
+// and shows them on the OLED. Lets the data collector prompt gestures on-screen.
+void oled_cmd_task(void *arg) {
+    uart_driver_install(UART_NUM_0, 512, 0, 0, NULL, 0);
+    uart_vfs_dev_use_driver(UART_NUM_0);
+    char line[96]; int idx = 0;
+    while (1) {
+        int c = getchar();
+        if (c < 0) { vTaskDelay(pdMS_TO_TICKS(10)); continue; }
+        if (c == '\n' || c == '\r') {
+            line[idx] = 0;
+            if (strncmp(line, "OLED:", 5) == 0) {
+                char *msg = line + 5;
+                char *bar = strchr(msg, '|');
+                if (bar) { *bar = 0; oled_show(msg, bar + 1); }
+                else     { oled_show(msg, ""); }
+            }
+            idx = 0;
+        } else if (idx < (int)sizeof(line) - 1) {
+            line[idx++] = (char)c;
+        }
+    }
+}
 
 /*
  * The examples use WiFi configuration that you can set via 'idf.py menuconfig'.
@@ -188,6 +215,11 @@ extern "C" void app_main() {
     sd_init();
     station_init();
     csi_init((char *) "STA");
+
+    if (oled_init()) {
+        oled_show("AIR GUITAR", "ready");
+    }
+    xTaskCreatePinnedToCore(&oled_cmd_task, "oled_cmd", 4096, NULL, 2, NULL, 0);
 
 #if !(SHOULD_COLLECT_CSI)
     printf("CSI will not be collected. Check `idf.py menuconfig  # > ESP32 CSI Tool Config` to enable CSI");

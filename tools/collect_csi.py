@@ -103,10 +103,19 @@ def record_window(s, seconds):
                 rows.append((round(time.time() - t0, 4), r[0], r[1]))
     return rows
 
-def countdown(msg, n=3):
+def oled(s, text):
+    """Send a display command to the ESP32: 'top|bottom' (bottom optional)."""
+    try:
+        s.write(("OLED:" + text + "\n").encode()); s.flush()
+    except Exception:
+        pass
+
+def countdown(msg, s=None, disp=None, n=3):
     print(msg)
     for i in range(n, 0, -1):
+        if s is not None and disp: oled(s, f"{disp}|in {i}")
         print(f"  {i}...", end='', flush=True); time.sleep(1)
+    if s is not None and disp: oled(s, f"{disp}|GO!")
     print("  GO!", flush=True)
 
 def main():
@@ -171,16 +180,21 @@ def main():
         rep_of = defaultdict(int)   # per-gesture sample counter
         with open(outpath, 'w') as f:
             f.write("gesture,sample_id,t_rel,rssi,amps\n")
+            oled(s, "AIR GUITAR|press enter")
             input("Press ENTER to begin...")
             for k, g in enumerate(trials):
                 sid = rep_of[g]; rep_of[g] += 1
-                countdown(f"[{k+1}/{len(trials)}]  >>> {g.upper()} <<<  perform on GO:")
+                disp = g.upper().replace('_', ' ')
+                countdown(f"[{k+1}/{len(trials)}]  >>> {g.upper()} <<<  perform on GO:",
+                          s=s, disp=disp)
                 rows = record_window(s, args.window)
+                oled(s, f"REST|{k+1}/{len(trials)} done")
                 for (t_rel, rssi, amps) in rows:
                     f.write(f"{g},{sid},{t_rel},{rssi},{amps}\n")
                     n_rows += 1
                 f.flush()
                 print(f"    captured {len(rows)} CSI packets")
+        oled(s, "DONE!|thank you")
         s.close()
         print(f"\nDone. {n_rows} CSI packets saved to {outpath}")
     finally:
