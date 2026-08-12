@@ -36,6 +36,26 @@ amp_std, amp_mean, n_packets, fc_std/fc_max (frame-to-frame change).
   packets/sample vs up-strum's 21, so the model may be keying on *execution differences*
   (speed/position/timing) rather than robust motion-direction physics.
 
+## Follow-up: interleaved control (2026-08-13)
+The first session collected each gesture in a **block** (30 down, then 30 up, …), which
+lets session drift masquerade as class signal. A second session collected the same
+gestures in **randomized (interleaved) order** to control for this.
+
+| Task | Blocked | Interleaved | Chance |
+|---|---|---|---|
+| 3-class | 63% | **23%** | 33% |
+| still vs strum | 71% | **53%** | ~50–67% |
+| down vs up | 80% | **48%** | 50% |
+
+**Conclusion: the blocked result was an artifact of collection order.** With gestures
+interleaved, accuracy falls to chance — the single-ESP32 router setup (blocky,
+packet-loss-dominated CSI at ~18/s) does **not** carry information to distinguish
+still / down / up. This is the decisive reason to move to a **two-ESP32 direct link**,
+which gives controllable high-rate *graded* CSI rather than all-or-nothing blocking.
+
+**Methodology takeaway:** always interleave classes when collecting; always keep an
+interleaved control before trusting a blocked accuracy number.
+
 ## Recommended next steps
 1. **Improve signal quality** — steady high-rate traffic (direct UDP instead of lossy pings)
    + geometry that yields *graded* per-subcarrier CSI rather than blocking. This is the
